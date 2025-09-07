@@ -1,3 +1,4 @@
+# main.py
 import os
 import asyncio
 import nest_asyncio
@@ -15,19 +16,13 @@ from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 )
 
-from dotenv import load_dotenv
-import os
-
-# Load .env file
-load_dotenv()
-
+# =========================
+# 🔧 CONFIG
+# =========================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 MONGO_URI = os.getenv("MONGO_URI")
 REPORT_CHANNEL_ID = int(os.getenv("REPORT_CHANNEL_ID"))
 CHANNEL_TO_JOIN = int(os.getenv("CHANNEL_TO_JOIN"))
-
-print("DEBUG BOT_TOKEN:", BOT_TOKEN) 
-
 
 SYSTEM_DBS = {"admin", "local", "config", "_quiz_meta_"}
 
@@ -266,7 +261,7 @@ async def alive_reporter(app):
         await asyncio.sleep(300)
 
 # =========================
-# 🚀 Run
+# 🚀 Run Bot
 # =========================
 async def main():
     app = Application.builder().token(BOT_TOKEN).build()
