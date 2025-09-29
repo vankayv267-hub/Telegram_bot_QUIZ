@@ -276,6 +276,10 @@ async def main():
 
     # start alive checker
     asyncio.create_task(alive_checker())
+    # inside main() before dp.start_polling(bot)
+
+    await bot.delete_webhook(drop_pending_updates=True)
+
 
     # start bot polling in background task
     bot_task = asyncio.create_task(dp.start_polling(bot))
