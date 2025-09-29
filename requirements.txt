@@ -1,5 +1,5 @@
-python-telegram-bot==20.7
-pymongo
-nest_asyncio
-fastapi
-uvicorn
+aiogram==3.1.0
+python-dotenv==1.0.0
+pymongo[srv]==4.6.0
+certifi==2025.9.0
+aiohttp==3.9.9
