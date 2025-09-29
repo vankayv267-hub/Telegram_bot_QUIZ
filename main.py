@@ -24,6 +24,8 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 MONGO_URI = os.getenv("MONGO_URI")
 REPORT_CHANNEL_ID = int(os.getenv("REPORT_CHANNEL_ID")) if os.getenv("REPORT_CHANNEL_ID") else None
 CHANNEL_TO_JOIN = int(os.getenv("CHANNEL_TO_JOIN")) if os.getenv("CHANNEL_TO_JOIN") else None
+WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # e.g., https://your-app.onrender.com/webhook/<token>
 PORT = int(os.getenv("PORT", 10000))
 
 # -------------------------
@@ -59,12 +61,6 @@ class QuizStates(StatesGroup):
 def chunked(lst, n):
     return [lst[i:i + n] for i in range(0, len(lst), n)]
 
-def sanitize_question_doc(q):
-    sanitized = {}
-    for k, v in q.items():
-        sanitized[k] = str(v) if isinstance(v, ObjectId) else v
-    return sanitized
-
 def clean_question_text(text):
     return re.sub(r"^\s*\d+\.\s*", "", (text or "")).strip()
 
@@ -88,15 +84,6 @@ def format_question_card(q):
     parts = [qtext, ""]
     parts += [f"A: {opts['a']}", f"B: {opts['b']}", f"C: {opts['c']}", f"D: {opts['d']}"]
     return "\n".join(parts).strip()
-
-def get_correct_answer(q):
-    raw = (q.get('answer') or q.get('correct') or "").strip().lower()
-    if raw in ['a','b','c','d']:
-        return raw
-    if raw.isdigit():
-        return {'1':'a','2':'b','3':'c','4':'d'}.get(raw, 'a')
-    m = re.search(r'([abcd])', raw)
-    return m.group(1) if m else 'a'
 
 def motivational_message():
     return random.choice([
@@ -147,10 +134,15 @@ async def handle_answer(call: CallbackQuery, state: FSMContext):
     await call.message.answer(f"You selected: {selected}\n{motivational_message()}")
 
 # -------------------------
-# Web server for alive check
+# Web server for webhook & alive
 # -------------------------
+async def handle_webhook(request):
+    data = await request.json()
+    update = dp.bot.update_class(**data)
+    await dp.process_update(update)
+    return web.Response(text="OK")
+
 async def handle_ping(request):
-    print(f"✅ Ping received at {datetime.now(timezone.utc).isoformat()}")
     return web.Response(text="Bot is alive!")
 
 async def alive_checker():
@@ -162,20 +154,28 @@ async def alive_checker():
                 pass
         await asyncio.sleep(300)
 
-app = web.Application()
-app.router.add_get("/", handle_ping)
-
 # -------------------------
 # Main function
 # -------------------------
 async def main():
+    # Set webhook
+    await bot.delete_webhook(drop_pending_updates=True)
+    await bot.set_webhook(WEBHOOK_URL)
+
+    # Start web server
+    app = web.Application()
+    app.router.add_post(WEBHOOK_PATH, handle_webhook)
+    app.router.add_get("/", handle_ping)
     asyncio.create_task(alive_checker())
     runner = web.AppRunner(app)
     await runner.setup()
     site = web.TCPSite(runner, "0.0.0.0", PORT)
     await site.start()
-    print(f"🚀 Web server running on port {PORT}")
-    await dp.start_polling(bot)
+    print(f"🚀 Web server running on port {PORT}, webhook path: {WEBHOOK_PATH}")
+
+    # Keep running
+    while True:
+        await asyncio.sleep(3600)
 
 if __name__ == "__main__":
     asyncio.run(main())
